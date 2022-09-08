@@ -7,17 +7,29 @@ use App\Models\Task;
 use App\Http\Resources\TaskResource;
 use App\Http\Requests\Task\StoreRequest as TaskStoreRequest;
 use App\Http\Requests\Task\UpdateRequest as TaskUpdateRequest;
+use App\Http\Middleware\ProductOwnerAccess;
+use App\Http\Middleware\AssignTaskAccess;
+use App\Http\Traits\ResponseTrait;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Traits\PaginateTrait;
 
 class TaskController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
+    use PaginateTrait;
+
+    public function __construct()
+    {
+        $this->middleware([ProductOwnerAccess::class])->only(['store']);
+        $this->middleware([AssignTaskAccess::class])->only(['update','store']);
+
+    }
     public function index(Request $request)
     {
-        return TaskResource::collection(Task::paginate(25));
+        $query = Task::DtFilter($request);
+
+        $setDatatable = $this->setDatatable($request,$query,'tittle');
+
+        return TaskResource::collection($setDatatable);
     }
 
     /**
@@ -39,6 +51,8 @@ class TaskController extends Controller
     public function store(TaskStoreRequest $request)
     {
         $validated = $request->validated();
+
+        $validated['status'] = Task::NOT_STARTED;
         
         $query = Task::create($validated);
     
@@ -78,6 +92,10 @@ class TaskController extends Controller
     public function update(TaskUpdateRequest $request,Task $task)
     {
         $validated = $request->validated();
+
+        if(Auth::user()->id != $task->user_id){
+            return ResponseTrait::sendResponse(null,0,'You dont have access to update task',400);
+        }
 
         $query = $task->update($validated);
 

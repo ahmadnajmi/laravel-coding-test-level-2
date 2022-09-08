@@ -4,14 +4,19 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Role;
 use App\Http\Resources\UserResource;
 use App\Http\Requests\User\StoreRequest as UserStoreRequest;
 use App\Http\Requests\User\UpdateRequest as UserUpdateRequest;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Traits\PaginateTrait;
 
 
 class UsersController extends Controller
 {
+    use PaginateTrait;
+
     /**
      * Display a listing of the resource.
      *
@@ -19,7 +24,11 @@ class UsersController extends Controller
      */
     public function index(Request $request)
     {
-        return UserResource::collection(User::paginate(25));
+        $query = User::DtFilter($request);
+
+        $setDatatable = $this->setDatatable($request,$query,'username');
+
+        return UserResource::collection($setDatatable);
     }
 
     /**
@@ -43,6 +52,7 @@ class UsersController extends Controller
         $validated = $request->validated();
 
         $validated['password']  = Hash::make($validated['password']);
+        $validated['role_id'] = Role::PRODUCT_OWNER;
 
         $query = User::create($validated);
     
